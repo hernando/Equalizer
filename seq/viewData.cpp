@@ -29,14 +29,16 @@
 namespace seq
 {
 ViewData::ViewData()
-        : _modelMatrix( eq::Matrix4f::IDENTITY )
-        , _spinX( 5 )
-        , _spinY( 5 )
-        , _advance( 0 )
-        , _statistics( false )
-        , _ortho( false )
+    : _modelMatrix( eq::Matrix4f::IDENTITY )
+    , _pivotPoint( eq::Vector3f::ZERO )
+    , _modelRadius( 1.f )
+    , _spinX( 5 )
+    , _spinY( 5 )
+    , _advance( 0 )
+    , _statistics( false )
+    , _ortho( false )
 {
-    moveModel( 0.f, 0.f, -2.f );
+    resetModelPosition();
 }
 
 ViewData::~ViewData()
@@ -78,6 +80,12 @@ bool ViewData::handleEvent( eq::EventICommand command )
 
 bool ViewData::_handleEvent( const eq::Event& event )
 {
+    const float magellanWeight = 0.0001f * _modelRadius;
+    const float magellanSpinWeight = 0.0001f;
+    const float mouseSpinWeight = 0.005f;
+    const float mousePanWeight = 0.0005f * _modelRadius;
+    const float mouseZoomWeight = 0.005f * _modelRadius;
+
     switch( event.type )
     {
       case eq::Event::CHANNEL_POINTER_BUTTON_RELEASE:
@@ -106,18 +114,19 @@ bool ViewData::_handleEvent( const eq::Event& event )
             case eq::PTR_BUTTON1:
                 _spinX = 0;
                 _spinY = 0;
-                spinModel( -0.005f * event.pointerMotion.dy,
-                           -0.005f * event.pointerMotion.dx, 0.f );
+                spinModel( -mouseSpinWeight * event.pointerMotion.dy,
+                           -mouseSpinWeight * event.pointerMotion.dx, 0.f );
                 return true;
 
             case eq::PTR_BUTTON2:
                 _advance = -event.pointerMotion.dy;
-                moveModel( 0.f, 0.f, .005f * _advance );
+                _moveModelScaledToZ( 0.f, 0.f, mouseZoomWeight * _advance );
                 return true;
 
             case eq::PTR_BUTTON3:
-                moveModel(  .0005f * event.pointerMotion.dx,
-                           -.0005f * event.pointerMotion.dy, 0.f );
+                _moveModelScaledToZ(
+                     mousePanWeight * event.pointerMotion.dx,
+                    -mousePanWeight * event.pointerMotion.dy, 0.f );
                 return true;
 
             default:
@@ -125,20 +134,20 @@ bool ViewData::_handleEvent( const eq::Event& event )
           }
 
       case eq::Event::CHANNEL_POINTER_WHEEL:
-          moveModel( -0.05f * event.pointerWheel.yAxis, 0.f,
-                      0.05f * event.pointerWheel.xAxis );
+          _moveModelScaledToZ( -mouseZoomWeight * event.pointerWheel.yAxis, 0.f,
+                                mouseZoomWeight * event.pointerWheel.xAxis );
           return true;
 
       case eq::Event::MAGELLAN_AXIS:
           _spinX = 0;
           _spinY = 0;
           _advance = 0;
-          spinModel(  0.0001f * event.magellan.zRotation,
-                     -0.0001f * event.magellan.xRotation,
-                     -0.0001f * event.magellan.yRotation );
-          moveModel(  0.0001f * event.magellan.xAxis,
-                     -0.0001f * event.magellan.zAxis,
-                      0.0001f * event.magellan.yAxis );
+          spinModel(  magellanSpinWeight * event.magellan.zRotation,
+                     -magellanSpinWeight * event.magellan.xRotation,
+                     -magellanSpinWeight * event.magellan.yRotation );
+          _moveModelScaledToZ(  magellanWeight * event.magellan.xAxis,
+                               -magellanWeight * event.magellan.zAxis,
+                                magellanWeight * event.magellan.yAxis );
           return true;
 
       case eq::Event::KEY_PRESS:
@@ -165,11 +174,22 @@ void ViewData::spinModel( const float x, const float y, const float z )
 
     Vector3f translation;
     _modelMatrix.get_translation( translation );
+
+    // Recovering the translation without the rotation around the pivot.
+    _modelMatrix.set_translation( Vector3f::ZERO );
+    translation -= _pivotPoint;
+    translation -= _modelMatrix * -_pivotPoint;
+
+    // Finding the new rotation
     _modelMatrix.set_translation( Vector3f::ZERO );
     _modelMatrix.pre_rotate_x( x );
     _modelMatrix.pre_rotate_y( y );
     _modelMatrix.pre_rotate_z( z );
-    _modelMatrix.set_translation( translation);
+
+    // Composing the translation part of the new _modelMatrix.
+    _modelMatrix.set_translation(
+        _modelMatrix * -_pivotPoint + translation + _pivotPoint);
+
     setDirty( DIRTY_MODELMATRIX );
 }
 
@@ -180,11 +200,22 @@ void ViewData::moveModel( const float x, const float y, const float z )
 
     Vector3f translation;
     _modelMatrix.get_translation( translation );
-    if( translation.squared_length() < 0.01f )
-        _modelMatrix.set_translation( translation + Vector3f( x, y, z ));
-    else
-        _modelMatrix.scale_translation( Vector3f( 1.f + x, 1.f + y, 1.f + z ));
+    _modelMatrix.set_translation( translation + Vector3f( x, y, z ));
     setDirty( DIRTY_MODELMATRIX );
+}
+
+void ViewData::setModelBounding( const Vector3f& center, const float radius )
+{
+    _pivotPoint = center;
+    _modelRadius = radius;
+}
+
+void ViewData::resetModelPosition()
+{
+    // Assuming a field of view of 45 degrees.
+    float distance = _modelRadius * 1.5 / std::sin(M_PI / 4);
+    _modelMatrix.set_translation(
+        Vector3f( -_pivotPoint[0], -_pivotPoint[1], -distance ));
 }
 
 void ViewData::showStatistics( const bool on )
@@ -211,8 +242,29 @@ bool ViewData::update()
         return false;
 
     spinModel( -0.001f * _spinX, -0.001f * _spinY, 0.f );
-    moveModel( 0.0f, 0.0f, 0.001f * _advance );
+    _moveModelScaledToZ( 0.0f, 0.0f, 0.001f * _advance );
     return true;
+}
+
+void ViewData::_moveModelScaledToZ( const float x, const float y,
+                                    const float z )
+{
+    if( x == 0.f && y == 0.f && z == 0.f )
+        return;
+    Vector3f translation;
+    _modelMatrix.get_translation( translation );
+    translation += _pivotPoint;
+
+    // Recovering the distance along Z without the rotation around the pivot.
+    float distance = translation[2] - _pivotPoint[2] +
+        dot( _modelMatrix.get_row( 2 ), eq::Vector4f( _pivotPoint, 1 ));
+
+    const float scaling = std::abs(distance) / _modelRadius;
+    translation += Vector3f( x, y, z) * scaling;
+
+    translation -= _pivotPoint;
+    _modelMatrix.set_translation( translation );
+    setDirty( DIRTY_MODELMATRIX );
 }
 
 }

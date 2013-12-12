@@ -66,6 +66,13 @@ namespace seq
         /** Move the model matrix by the given increments. @version 1.0 */
         SEQ_API void moveModel( const float x, const float y, const float z );
 
+        /** Sets the pivot point used for spinModel. @version 2.0 */
+        SEQ_API void setModelBounding( const Vector3f& center,
+                                       const float radius );
+
+        /** TODO. @version 2.0 */
+        SEQ_API void resetModelPosition();
+
         /**
          * Enable or disable statistics rendering.
          *
@@ -114,6 +121,9 @@ namespace seq
         //@}
 
     protected:
+        SEQ_API void _moveModelScaledToZ(
+            const float x, const float y, const float z );
+
         virtual SEQ_API void serialize( co::DataOStream& os,
                                         const uint64_t dirtyBits );
         virtual SEQ_API void deserialize( co::DataIStream& is,
@@ -131,6 +141,8 @@ namespace seq
         bool _handleEvent( const eq::Event& event );
 
         Matrix4f _modelMatrix;
+        Vector3f _pivotPoint;
+        float _modelRadius;
         int32_t _spinX, _spinY;
         int32_t _advance;
         bool _statistics;
