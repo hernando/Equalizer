@@ -29,6 +29,10 @@
 #include "localInitData.h"
 #include "frameData.h"
 
+#pragma warning( disable: 4275 )
+#include <boost/program_options.hpp>
+#pragma warning( default: 4275 )
+
 #include <algorithm>
 #include <cctype>
 #include <functional>
@@ -36,14 +40,16 @@
 #ifndef MIN
 #  define MIN LB_MIN
 #endif
-#include <tclap/CmdLine.h>
+
+namespace po = boost::program_options;
 
 namespace eqPly
 {
 LocalInitData::LocalInitData()
-        : _maxFrames( 0xffffffffu )
-        , _color( true )
-        , _isResident( false )
+    : _pathFilename("")
+    , _maxFrames( 0xffffffffu )
+    , _color( true )
+    , _isResident( false )
 {
 #ifdef EQ_RELEASE
 #  ifdef _WIN32 // final INSTALL_DIR is not known at compile time
@@ -97,102 +103,117 @@ void LocalInitData::parseArguments( const int argc, char** argv )
 #endif
         wsHelp += ")";
 
+        bool showHelp(false);
+        std::vector<std::string> userDefinedModelPath;
+        bool userDefinedBlackWhiteMode(false);
+        std::string userDefinedWindowSystem("");
+        std::string userDefinedRenderMode("");
+        bool userDefinedUseGLSL(false);
+        bool userDefinedInvertFaces(false);
+        bool userDefinedDisableLogo(false);
+        bool userDefinedDisableROI(false);
+
         const std::string& desc = EqPly::getHelp();
+        po::options_description options( desc  + eq::Version::getString( ));
 
-        TCLAP::CmdLine command( desc, ' ', eq::Version::getString( ));
-        TCLAP::MultiArg<std::string> modelArg( "m", "model",
-                                             "ply model file name or directory",
-                                               false, "string", command );
-        TCLAP::SwitchArg colorArg( "b", "blackAndWhite",
-                                   "Don't use colors from ply file",
-                                   command, false );
-        TCLAP::SwitchArg residentArg( "r", "resident",
-           "Keep client resident (see resident node documentation on website)",
-                                      command, false );
-        TCLAP::ValueArg<uint32_t> framesArg( "n", "numFrames",
-                                           "Maximum number of rendered frames",
-                                             false, 0xffffffffu, "unsigned",
-                                             command );
-        TCLAP::ValueArg<std::string> wsArg( "w", "windowSystem", wsHelp,
-                                            false, "auto", "string", command );
-        TCLAP::ValueArg<std::string> modeArg( "c", "renderMode",
-                                 "Rendering Mode (immediate, displayList, VBO)",
-                                              false, "auto", "string",
-                                              command );
-        TCLAP::SwitchArg glslArg( "g", "glsl", "Enable GLSL shaders",
-                                    command, false );
-        TCLAP::SwitchArg invFacesArg( "i", "invertFaces",
-                             "Invert faces (valid during binary file creation)",
-                                    command, false );
-        TCLAP::ValueArg<std::string> pathArg( "a", "cameraPath",
-                                        "File containing camera path animation",
-                                              false, "", "string", command );
-        TCLAP::SwitchArg overlayArg( "o", "noOverlay", "Disable overlay logo",
-                                     command, false );
-        TCLAP::UnlabeledMultiArg< std::string >
-            ignoreArgs( "ignore", "Ignored unlabeled arguments", false, "any",
-                        command );
-        TCLAP::SwitchArg roiArg( "d", "disableROI", "Disable ROI", command,
-                                 false );
+        options.add_options()
+            ( "help,h",       po::bool_switch(&showHelp)->default_value(false),
+              "produce help message" )
+            ( "model,m",
+              po::value<std::vector<std::string> >( &userDefinedModelPath ),
+              "ply model file names or directories" )
+            ( "blackAndWhite,b",
+              po::bool_switch(&userDefinedBlackWhiteMode)->default_value(false),
+              "Don't use colors from ply file" )
+            ( "resident,r", po::bool_switch(&_isResident)->default_value(false),
+           "Keep client resident (see resident mode documentation on website)" )
+            ( "numFrames,n",
+              po::value<uint32_t>(&_maxFrames)->default_value(0xffffffffu),
+              "Maximum number of rendered frames")
+            ( "windowSystem,w",
+              po::value<std::string>(&userDefinedWindowSystem),
+              wsHelp.c_str() )
+            ( "renderMode,c", po::value<std::string>(&userDefinedRenderMode),
+              "Rendering Mode (immediate|displayList|VBO)" )
+            ( "glsl,g",
+              po::bool_switch(&userDefinedUseGLSL)->default_value(false),
+              "Enable GLSL shaders" )
+            ( "invertFaces,i", po::bool_switch(&userDefinedInvertFaces)->default_value(false),
+              "Invert faces (valid during binary file creation)" )
+            ( "cameraPath,a", po::value<std::string>(&_pathFilename),
+              "File containing camera path animation" )
+            ( "noOverlay,o",
+              po::bool_switch(&userDefinedDisableLogo)->default_value(false),
+              "Disable overlay logo" )
+            ( "disableROI,d",
+              po::bool_switch(&userDefinedDisableROI)->default_value(false),
+              "Disable region of interest (ROI)" );
 
-#ifdef TCPLAP_HAS_IGNOREUNMATCHED
-        command.ignoreUnmatched( true );
-#endif
-        command.parse( argc, argv );
+        // parse program options, ignore all non related options
+        po::variables_map variableMap;
+        po::store( po::command_line_parser( argc, argv ).options(
+                       options ).allow_unregistered().run(),
+                   variableMap );
+        po::notify(variableMap);
 
-        if( modelArg.isSet( ))
+        // Evaluate parsed command line options
+        if( showHelp )
+        {
+            LBWARN << options << std::endl;
+            ::exit( EXIT_SUCCESS );
+        }
+
+        if( variableMap.count("model") > 0 )
         {
             _filenames.clear();
-            _filenames = modelArg.getValue();
+            _filenames = userDefinedModelPath;
         }
-        if( wsArg.isSet( ))
+
+        _color = !userDefinedBlackWhiteMode;
+
+        if( variableMap.count("windowSystem") > 0 )
         {
-            std::string windowSystem = wsArg.getValue();
-            transform( windowSystem.begin(), windowSystem.end(),
-                       windowSystem.begin(), (int(*)(int))std::toupper );
-
-            setWindowSystem( windowSystem );
+            std::transform( userDefinedWindowSystem.begin(),
+                            userDefinedWindowSystem.end(),
+                            userDefinedWindowSystem.begin(),
+                            (int(*)(int))std::toupper );
+            setWindowSystem( userDefinedWindowSystem );
         }
 
-        _color = !colorArg.isSet();
-
-        if( framesArg.isSet( ))
-            _maxFrames = framesArg.getValue();
-
-        if( residentArg.isSet( ))
-            _isResident = true;
-
-        if( modeArg.isSet() )
+        if( variableMap.count("renderMode") > 0 )
         {
-            std::string mode = modeArg.getValue();
-            transform( mode.begin(), mode.end(), mode.begin(),
-                       (int(*)(int))std::tolower );
+            std::transform( userDefinedRenderMode.begin(),
+                            userDefinedRenderMode.end(),
+                            userDefinedRenderMode.begin(),
+                            (int(*)(int))std::tolower );
 
-            if( mode == "immediate" )
-                setRenderMode( mesh::RENDER_MODE_IMMEDIATE );
-            else if( mode == "displaylist" )
-                setRenderMode( mesh::RENDER_MODE_DISPLAY_LIST );
-            else if( mode == "vbo" )
-                setRenderMode( mesh::RENDER_MODE_BUFFER_OBJECT );
+            if( userDefinedRenderMode == "immediate" )
+                setRenderMode( plylib::RENDER_MODE_IMMEDIATE );
+            else if( userDefinedRenderMode == "displaylist" )
+                setRenderMode( plylib::RENDER_MODE_DISPLAY_LIST );
+            else if( userDefinedRenderMode == "vbo" )
+                setRenderMode( plylib::RENDER_MODE_BUFFER_OBJECT );
         }
 
-        if( pathArg.isSet( ))
-            _pathFilename = pathArg.getValue();
-
-        if( glslArg.isSet() )
+        if( userDefinedUseGLSL )
             enableGLSL();
-        if( invFacesArg.isSet() )
+
+        if( userDefinedInvertFaces)
             enableInvertedFaces();
-        if( overlayArg.isSet( ))
+
+        if( userDefinedDisableLogo )
             disableLogo();
-        if( roiArg.isSet( ))
+
+        if( userDefinedDisableROI )
             disableROI();
+
     }
-    catch( const TCLAP::ArgException& exception )
+    catch( std::exception& exception )
     {
-        LBERROR << "Command line parse error: " << exception.error()
-                << " for argument " << exception.argId() << std::endl;
+        LBERROR << "Error parsing command line: " << exception.what()
+            << std::endl;
         ::exit( EXIT_FAILURE );
     }
 }
+
 }

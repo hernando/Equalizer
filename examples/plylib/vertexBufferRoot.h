@@ -1,6 +1,6 @@
 
-/* Copyright (c) 2007, Tobias Wolf <twolf@access.unizh.ch>
- *               2009-2012, Stefan Eilemann <eile@equalizergraphics.com>
+/* Copyright (c)      2007, Tobias Wolf <twolf@access.unizh.ch>
+ *               2009-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,52 +25,54 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
-*/
+ */
 
 
-#ifndef MESH_VERTEXDATA_H
-#define MESH_VERTEXDATA_H
+#ifndef PLYLIB_VERTEXBUFFERROOT_H
+#define PLYLIB_VERTEXBUFFERROOT_H
+
+#include"api.h"
+#include "vertexBufferData.h"
+#include "vertexBufferNode.h"
 
 
-#include "typedefs.h"
-#include <vector>
-
-
-// defined elsewhere
-struct PlyFile;
-
-namespace mesh 
+namespace plylib
 {
-    /*  Holds the flat data and offers routines to read, scale and sort it.  */
-    class VertexData
-    {
-    public:
-        VertexData();
+/*  The class for kd-tree root nodes.  */
+class VertexBufferRoot : public VertexBufferNode
+{
+public:
+    PLYLIB_API VertexBufferRoot() : VertexBufferNode(), _invertFaces(false) {}
 
-        bool readPlyFile( const std::string& file );
-        void sort( const Index start, const Index length, const Axis axis );
-        void scale( const float baseSize = 2.0f );
-        void calculateNormals();
-        void calculateBoundingBox();
-        const BoundingBox& getBoundingBox() const { return _boundingBox; }
-        Axis getLongestAxis( const size_t start, const size_t elements ) const;
+    PLYLIB_API virtual void cullDraw( VertexBufferState& state ) const;
+    PLYLIB_API virtual void draw( VertexBufferState& state ) const;
 
-        void useInvertedFaces() { _invertFaces = true; }
+    PLYLIB_API void setupTree( VertexData& data );
+    PLYLIB_API bool writeToFile( const std::string& filename );
+    PLYLIB_API bool readFromFile( const std::string& filename );
+    bool hasColors() const { return _data.colors.size() > 0; }
 
-        std::vector< Vertex >   vertices;
-        std::vector< Color >    colors;
-        std::vector< Normal >   normals;
-        std::vector< Triangle > triangles;
+    void useInvertedFaces() { _invertFaces = true; }
 
-    private:
-        void readVertices( PlyFile* file, const int nVertices, 
-                           const bool readColors );
-        void readTriangles( PlyFile* file, const int nFaces );
+    const std::string& getName() const { return _name; }
 
-        BoundingBox _boundingBox;
-        bool        _invertFaces;
-    };
+protected:
+    PLYLIB_API virtual void toStream( std::ostream& os );
+    PLYLIB_API virtual void fromMemory( char* start );
+
+private:
+    bool _constructFromPly( const std::string& filename );
+    bool _readBinary( std::string filename );
+
+    void _beginRendering( VertexBufferState& state ) const;
+    void _endRendering( VertexBufferState& state ) const;
+
+    friend class VertexBufferDist;
+    VertexBufferData _data;
+    bool             _invertFaces;
+    std::string      _name;
+};
 }
 
 
-#endif // MESH_VERTEXDATA_H
+#endif // PLYLIB_VERTEXBUFFERROOT_H

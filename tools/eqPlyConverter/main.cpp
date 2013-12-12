@@ -27,7 +27,7 @@
  */
 
 #include <eq/eq.h>
-#include <vertexBufferRoot.h>
+#include <plylib/vertexBufferRoot.h>
 
 namespace
 {
@@ -59,7 +59,7 @@ int main( const int argc, char** argv )
 
         if( _isPlyfile( filename ))
         {
-            mesh::VertexBufferRoot* model = new mesh::VertexBufferRoot;
+            plylib::VertexBufferRoot* model = new plylib::VertexBufferRoot;
             if( !model->readFromFile( filename.c_str( )))
                 LBWARN << "Can't load model: " << filename << std::endl;
 

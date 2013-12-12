@@ -32,9 +32,9 @@
 #include <seq/sequel.h>
 
 #include <frameData.h>
-#include <vertexBufferDist.h>
-#include <vertexBufferRoot.h>
-#include <vertexBufferState.h>
+#include <plylib/vertexBufferDist.h>
+#include <plylib/vertexBufferRoot.h>
+#include <plylib/vertexBufferState.h>
 
 #ifndef M_PI_2
 #  define M_PI_2 1.57079632679489661923
@@ -43,9 +43,9 @@
 /** The Sequel polygonal rendering example. */
 namespace seqPly
 {
-    typedef mesh::VertexBufferRoot        Model;
-    typedef eqPly::VertexBufferDist       ModelDist;
-    typedef mesh::VertexBufferStateSimple State;
+    typedef plylib::VertexBufferRoot      Model;
+    typedef plylib::VertexBufferDist      ModelDist;
+    typedef plylib::VertexBufferStateSimple State;
     using eqPly::FrameData;
 
     class Application : public seq::Application

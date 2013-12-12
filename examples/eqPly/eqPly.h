@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2006-2011, Stefan Eilemann <eile@equalizergraphics.com> 
+/* Copyright (c) 2006-2013, Stefan Eilemann <eile@equalizergraphics.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,8 +31,8 @@
 
 #include <eq/eq.h>
 
-#include "vertexBufferDist.h"
-#include "vertexBufferRoot.h"
+#include <plylib/vertexBufferDist.h>
+#include <plylib/vertexBufferRoot.h>
 
 #ifndef M_PI_2
 #  define M_PI_2 1.57079632679489661923
@@ -43,8 +43,8 @@ namespace eqPly
 {
     class LocalInitData;
 
-    typedef mesh::VertexBufferRoot    Model;
-    typedef VertexBufferDist          ModelDist;
+    typedef plylib::VertexBufferRoot  Model;
+    typedef plylib::VertexBufferDist  ModelDist;
 
     typedef std::vector< Model* > Models;
     typedef std::vector< ModelDist* > ModelDists;
@@ -94,4 +94,3 @@ template<> inline void byteswap( eqPly::ColorMode& value )
     { byteswap( reinterpret_cast< uint32_t& >( value )); }
 }
 #endif // EQ_PLY_H
-

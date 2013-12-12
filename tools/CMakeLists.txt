@@ -8,6 +8,7 @@ macro(EQ_ADD_TOOL NAME)
   cmake_parse_arguments(THIS "" "" "SOURCES;HEADERS;LINK_LIBRARIES" ${ARGN})
   set(THIS_TARGET ${NAME})
   source_group(\\ FILES ${THIS_SOURCES} ${THIS_HEADERS})
+  add_definitions(-DBOOST_PROGRAM_OPTIONS_DYN_LINK)
   add_executable(${THIS_TARGET} ${THIS_SOURCES} ${THIS_HEADERS})
   target_link_libraries(${THIS_TARGET} ${THIS_LINK_LIBRARIES})
   set_target_properties(${THIS_TARGET} PROPERTIES OUTPUT_NAME ${NAME} FOLDER "Tools")
@@ -16,7 +17,7 @@ macro(EQ_ADD_TOOL NAME)
 endmacro(EQ_ADD_TOOL NAME)
 
 include_directories(${CMAKE_SOURCE_DIR}/examples/include
-  ${CMAKE_SOURCE_DIR}/examples/eqPly)
+  ${CMAKE_SOURCE_DIR}/examples)
 add_definitions(-DEQ_SYSTEM_INCLUDES) # get GL headers
 
 if(GLEW_MX_FOUND)
@@ -36,7 +37,7 @@ endif(WIN32)
 eq_add_tool(eqConfigTool
   HEADERS configTool/configTool.h configTool/frame.h
   SOURCES configTool/configTool.cpp configTool/writeFromFile.cpp
-  LINK_LIBRARIES Equalizer EqualizerServer
+  LINK_LIBRARIES Equalizer EqualizerServer ${Boost_PROGRAM_OPTIONS_LIBRARY}
   )
 
 eq_add_tool(eqThreadAffinity SOURCES threadAffinity/threadAffinity.cpp
@@ -45,23 +46,8 @@ eq_add_tool(eqThreadAffinity SOURCES threadAffinity/threadAffinity.cpp
 
 eq_add_tool(eqPlyConverter
   HEADERS
-    ../examples/eqPly/ply.h
-    ../examples/eqPly/vertexBufferBase.h
-    ../examples/eqPly/vertexBufferData.h
-    ../examples/eqPly/vertexBufferLeaf.h
-    ../examples/eqPly/vertexBufferNode.h
-    ../examples/eqPly/vertexBufferRoot.h
-    ../examples/eqPly/vertexBufferState.h
-    ../examples/eqPly/vertexData.h
   SOURCES eqPlyConverter/main.cpp
-    ../examples/eqPly/plyfile.cpp
-    ../examples/eqPly/vertexBufferBase.cpp
-    ../examples/eqPly/vertexBufferLeaf.cpp
-    ../examples/eqPly/vertexBufferNode.cpp
-    ../examples/eqPly/vertexBufferRoot.cpp
-    ../examples/eqPly/vertexBufferState.cpp
-    ../examples/eqPly/vertexData.cpp
-  LINK_LIBRARIES Equalizer
+  LINK_LIBRARIES Equalizer plylib
   )
 
 eq_add_tool(eVolveConverter
@@ -73,6 +59,7 @@ eq_add_tool(eVolveConverter
   SOURCES
     eVolveConverter/eVolveConverter.cpp
     eVolveConverter/ddsbase.cpp
+  LINK_LIBRARIES ${Boost_PROGRAM_OPTIONS_LIBRARY}
   )
 
 eq_add_tool(eqWindowAdmin
