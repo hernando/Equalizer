@@ -8,16 +8,13 @@
 
 set(EQ_GL_LIBRARIES)
 
+list(APPEND EQ_GL_LIBRARIES ${OPENGL_LIBRARIES})
 if(APPLE)
-  if(EQ_AGL_USED OR EQ_QT_USED)
-    list(APPEND EQ_GL_LIBRARIES ${OPENGL_LIBRARIES})
-  elseif(EQ_GLX_USED)
-    list(APPEND EQ_GL_LIBRARIES GL)
+  if(EQ_GLX_USED)
+    list(APPEND EQ_GL_LIBRARIES PRIVATE GL)
     # see FindOpenGL.cmake...
     find_library(OPENGL_glu_LIBRARY GLU PATHS /opt/X11/lib /usr/X11R6/lib)
   endif()
-else()
-  list(APPEND EQ_GL_LIBRARIES ${OPENGL_gl_LIBRARY})
 endif()
 
 if(EQ_GLX_USED)

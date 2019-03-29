@@ -2,6 +2,10 @@
 #                         Stefan Eilemann <eile@eyescale.ch>
 #                         Daniel Nachbaur <danielnachbaur@gmail.com>
 
+if(${CMAKE_VERSION} VERSION_GREATER "3.10.0")
+  cmake_policy(SET CMP0071 OLD)
+endif()
+
 bison_target(PARSER loader.y ${CMAKE_CURRENT_BINARY_DIR}/parser.cpp
   COMPILE_FLAGS "-l -p eqLoader_")
 

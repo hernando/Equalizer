@@ -151,6 +151,8 @@ if(HWLOC_GL_FOUND)
   list(APPEND COMMON_FIND_PACKAGE_DEFINES EQUALIZER_USE_HWLOC_GL)
 endif()
 
+include(GLEW/CMakeLists.txt)
+
 common_find_package_post()
 
 if(APPLE)
@@ -171,7 +173,6 @@ if(EQUALIZER_BUILD_2_0_API)
 endif()
 add_definitions(${EQ_DEFINITIONS})
 
-include(GLEW/CMakeLists.txt)
 add_subdirectory(eq)
 add_subdirectory(seq)
 add_subdirectory(tools) # before examples, they depend on it
